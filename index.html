@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COVID-19 Algeria </title>
+</head>
+<style >
+body{
+    margin:0;
+}
+
+.table-death{
+  color:red;
+  font-weight: 600;
+}
+.table-rate{
+  color:lightseagreen;
+  font-size: 1.1em;
+  font-weight: 700;
+}
+.container{
+    padding:1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    flex-direction: column;
+}
+.chart-container{
+  padding-bottom: 3em;
+}
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+</style>
+<body>
+
+    <div class="container">
+
+        <div class="chart-container">
+          <h2>Coronavirus: le taux de létalité les plus élevé au monde</h2>
+          <table id="deaths-rate">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>country</th>
+                <th>Confirmed</th>
+                <th>Deaths</th>
+                <th>Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+          </table>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="myChart" width="900" height="600"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <canvas id="chart-line" width="900" height="600"></canvas>
+        </div>
+        
+    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+<script>
+
+
+  axios.get('https://pomber.github.io/covid19/timeseries.json')
+    .then(response => {
+
+      const globalData = response.data
+      const allContriesData = {}
+      const countries = ['Algeria', 'Germany', 'France', 'China', 'Morocco', 'US', 'Italy']
+
+      for (const property in globalData) {
+        const obj = {
+          confirmed: globalData[property].slice(-1)[0]['confirmed'],
+          deaths: globalData[property].slice(-1)[0]['deaths'],
+          mortalityRate: (globalData[property].slice(-1)[0]['deaths'] / globalData[property].slice(-1)[0]['confirmed'] * 100).toFixed(2)
+        }
+        allContriesData[property] = obj
+      }
+
+      const mortalityRate = [
+        allContriesData['Algeria']['mortalityRate'],
+        allContriesData['Germany']['mortalityRate'],
+        allContriesData['France']['mortalityRate'],
+        allContriesData['China']['mortalityRate'],
+        allContriesData['Morocco']['mortalityRate'],
+        allContriesData['US']['mortalityRate'],
+        allContriesData['Italy']['mortalityRate'],
+      ]
+
+
+        var chart_1 = new Chart(document.getElementById("myChart"), {
+        type: 'bar',
+        data: {
+          labels: countries,
+          datasets: [
+            {
+              label: "Mortality rate",
+              backgroundColor: ["#3e95cd", "#8e5ea2", "#3cba9f", "#e8c3b9", "#c45850", "#31fa9f", "#3bca4f"],
+              data: mortalityRate
+            }
+          ]
+        },
+        options: {
+          responsive: false,
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Comparaison du taux de létalité %'
+          }
+        }
+      });//end of chart 1
+
+
+      //start of chart 2
+
+      const algeriaData = globalData['Algeria'].slice(33)
+      const dates = algeriaData.map(elm => elm['date'])
+      const algeriaDeaths = algeriaData.map(elm => elm['deaths'])
+      const algeriaConfirmed = algeriaData.map(elm => elm['confirmed'])
+      const algeriaRecovred = algeriaData.map(elm => elm['recovered'])
+      
+
+      var chart_2 = new Chart(document.querySelector('#chart-line'), {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            data: algeriaDeaths,
+            label: "Deaths",
+            borderColor: "#bc4343",
+            fill: false
+          }, {
+            data: algeriaConfirmed,
+            label: "Confirmed",
+            borderColor: "#3c97f2",
+            fill: false
+          }, {
+            data: algeriaRecovred,
+            label: "Recovered",
+            borderColor: "#6df2ab",
+            fill: false
+          }
+          ]
+        },
+        options: {
+          title: {
+            display: true,
+            text: 'Evolution de la pandémie en algerie'
+          }
+        }
+      });
+
+      //most death rate countries
+
+      const fiveCountries = []
+      for (let i = 0; i < 5; i++) {
+        const maxDeathRate = []
+
+        for (const property in allContriesData) {
+          if (allContriesData[property]['confirmed'] > 100 && !fiveCountries.includes(property)) {
+            maxDeathRate.push(allContriesData[property]['mortalityRate'])
+          }
+        }
+        let maxValue = Math.max(...maxDeathRate)
+        for (const property in allContriesData) {
+          if (allContriesData[property]['mortalityRate'] == maxValue) {
+            fiveCountries.push(property)
+          }
+        }
+
+
+      }
+      
+      const mostDeathRateCountries = []
+      for (const country of fiveCountries) {
+        const countryObj = {}
+        countryObj[country] = allContriesData[country]
+
+        mostDeathRateCountries.push(countryObj)
+      }
+
+      const deathRateTableBody = document.querySelector('#deaths-rate > tbody')
+      let i = 1
+      for (const data of mostDeathRateCountries){
+
+        
+        var newRow   = deathRateTableBody.insertRow();
+        // Insert a cell in the row at index 0
+        var newCell  = newRow.insertCell(0);
+        var newText  = document.createTextNode(i);
+        newCell.appendChild(newText);
+
+        newCell  = newRow.insertCell(1);
+        newText  = document.createTextNode(Object.getOwnPropertyNames(data)[0]);
+        newCell.appendChild(newText);
+
+        newCell  = newRow.insertCell(2);
+        newText  = document.createTextNode(data[Object.getOwnPropertyNames(data)[0]]['confirmed']);
+        newCell.appendChild(newText);
+
+        newCell  = newRow.insertCell(3);
+        newText  = document.createTextNode(data[Object.getOwnPropertyNames(data)[0]]['deaths']);
+        newCell.appendChild(newText);
+        newCell.classList.add('table-death')
+
+        newCell  = newRow.insertCell(4);
+        newText  = document.createTextNode(data[Object.getOwnPropertyNames(data)[0]]['mortalityRate']+' %');
+        newCell.appendChild(newText);
+        newCell.classList.add('table-rate')
+
+        i = i +1 
+
+      }
+    })//end of axios callback
+
+
+</script>
+</body>
+</html>
